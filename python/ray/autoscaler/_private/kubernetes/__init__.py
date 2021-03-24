@@ -1,3 +1,4 @@
+import os
 import logging
 import kubernetes
 from kubernetes.config.config_exception import ConfigException
@@ -10,6 +11,7 @@ _extensions_beta_api = None
 
 logger = logging.getLogger(__name__)
 
+TIMEOUT = float(os.environ.get("RAY_K8S_TIMEOUT", 10.0))
 class K8Safe:
     def __init__(self, object):
         self.object = object
@@ -18,14 +20,13 @@ class K8Safe:
         attribute = getattr(self.object, name)
         if callable(attribute):
 
-            @retry(wait=wait_fixed(10), reraise=True)
+            @retry(wait=wait_fixed(TIMEOUT), reraise=True)
             def retry_safe(*args, **kwargs):
                 """Infinite retry and lower timeout of k8s API calls"""
                 try:
-                    result = attribute(*args, **kwargs, _request_timeout=5)
-                    return result
+                    return attribute(*args, **kwargs, _request_timeout=TIMEOUT)
                 except Exception as e:
-                    logger.error(f"K8S API call failed: {str(e)}! Retrying...")
+                    logger.error(f"K8S API call {name} failed: {str(e)}! Retrying...")
                     raise e
 
             return retry_safe
