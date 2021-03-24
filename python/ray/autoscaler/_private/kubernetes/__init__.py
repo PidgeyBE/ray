@@ -58,7 +58,7 @@ def auth_api():
     global _auth_api
     if _auth_api is None:
         _load_config()
-        _auth_api = kubernetes.client.RbacAuthorizationV1Api()
+        _auth_api = K8Safe(kubernetes.client.RbacAuthorizationV1Api())
 
     return _auth_api
 
