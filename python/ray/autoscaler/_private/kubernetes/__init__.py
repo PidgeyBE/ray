@@ -2,7 +2,8 @@ import os
 import logging
 import kubernetes
 from kubernetes.config.config_exception import ConfigException
-from tenacity import retry, wait_fixed
+from kubernetes.client.rest import ApiException
+from tenacity import retry, wait_fixed, retry_if_exception_type
 
 _configured = False
 _core_api = None
@@ -10,28 +11,47 @@ _auth_api = None
 _extensions_beta_api = None
 
 logger = logging.getLogger(__name__)
+# Has to be an integer (for requests lib compat)!
+TIMEOUT = int(os.environ.get("RAY_K8S_TIMEOUT", 10))
 
-TIMEOUT = float(os.environ.get("RAY_K8S_TIMEOUT", 10.0))
+class CustomRetryError(Exception):
+    pass
+
+# For kubernetes==10.0.1 kubernetes-asyncio==10.0.0
 class K8Safe:
     def __init__(self, object):
         self.object = object
 
     def __getattr__(self, name):
         attribute = getattr(self.object, name)
-        if callable(attribute):
-
-            @retry(wait=wait_fixed(TIMEOUT), reraise=True)
+        if not callable(attribute):
+            return attribute
+        else:
+            @retry(
+                wait=wait_fixed(TIMEOUT),
+                reraise=True,
+                retry=retry_if_exception_type(CustomRetryError)
+            )
             def retry_safe(*args, **kwargs):
                 """Infinite retry and lower timeout of k8s API calls"""
                 try:
-                    return attribute(*args, **kwargs, _request_timeout=TIMEOUT)
+                    return attribute(
+                        *args,
+                        **kwargs,
+                        _request_timeout=TIMEOUT,
+                    )
                 except Exception as e:
-                    logger.error(f"K8S API call {name} failed: {str(e)}! Retrying...")
-                    raise e
+                    logger.error(
+                        f"K8S API call `{name}` failed: {str(e)}!"
+                    )
+                    if isinstance(e, ApiException):
+                        logger.error(f"Exception was valid k8s exception (e.g. 404)")
+                        raise e
+                    else:
+                        logger.error(f"Retrying...")
+                        raise CustomRetryError()
 
             return retry_safe
-        else:
-            return attribute
 
 
 def _load_config():
