@@ -2,6 +2,9 @@ from typing import Any, Dict, List, Tuple, Union
 import gym
 
 # Represents a fully filled out config of a Trainer class.
+# Note: Policy config dicts are usually the same as TrainerConfigDict, but
+# parts of it may sometimes be altered in e.g. a multi-agent setup,
+# where we have >1 Policies in the same Trainer.
 TrainerConfigDict = dict
 
 # A trainer config dict that only has overrides. It needs to be combined with
@@ -33,6 +36,9 @@ MultiAgentPolicyConfigDict = Dict[PolicyID, Tuple[type, gym.Space, gym.Space,
 # Represents an environment id.
 EnvID = int
 
+# Represents an episode id.
+EpisodeID = int
+
 # A dict keyed by agent ids, e.g. {"agent-1": value}.
 MultiAgentDict = Dict[AgentID, Any]
 
@@ -49,6 +55,9 @@ EnvActionType = Any
 # Info dictionary returned by calling step() on gym envs. Commonly empty dict.
 EnvInfoDict = dict
 
+# Represents a File object
+FileType = Any
+
 # Represents the result dict returned by Trainer.train().
 ResultDict = dict
 
@@ -63,17 +72,19 @@ GradInfoDict = dict
 # policy id.
 LearnerStatsDict = dict
 
-# Type of dict returned by compute_gradients() representing model gradients.
-ModelGradients = dict
+# Represents a generic tensor type.
+# This could be an np.ndarray, tf.Tensor, or a torch.Tensor.
+TensorType = Any
+
+# List of grads+var tuples (tf) or list of gradient tensors (torch)
+# representing model gradients and returned by compute_gradients().
+ModelGradients = Union[List[Tuple[TensorType, TensorType]], List[TensorType]]
 
 # Type of dict returned by get_weights() representing model weights.
 ModelWeights = dict
 
 # Some kind of sample batch.
 SampleBatchType = Union["SampleBatch", "MultiAgentBatch"]
-
-# Represents a generic tensor type.
-TensorType = Any
 
 # Either a plain tensor, or a dict or tuple of tensors (or StructTensors).
 TensorStructType = Union[TensorType, dict, tuple]

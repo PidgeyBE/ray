@@ -206,7 +206,8 @@ class TestModules(unittest.TestCase):
 
                 # Get initial state and add a batch dimension.
                 init_state = [np.expand_dims(s, 0) for s in init_state]
-                seq_lens_init = torch.full(size=(B, ), fill_value=L)
+                seq_lens_init = torch.full(
+                    size=(B, ), fill_value=L, dtype=torch.int32)
 
                 # Torch implementation expects a formatted input_dict instead
                 # of a numpy array as input.
@@ -251,7 +252,7 @@ class TestModules(unittest.TestCase):
                 self.train_tf_model(
                     model, [x] + init_state,
                     [y, value_labels, memory_labels, mlp_labels],
-                    num_epochs=50,
+                    num_epochs=200,
                     minibatch_size=B)
 
 
